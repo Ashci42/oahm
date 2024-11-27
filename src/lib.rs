@@ -1,22 +1,21 @@
-use std::{hash::{DefaultHasher, Hash, Hasher}, usize};
+use std::hash::{DefaultHasher, Hash, Hasher};
 
 const EXTEND_LIMIT: f32 = 0.6;
 const INITIAL_CAPACITY: usize = 64;
 
-pub struct OAHashMap<K, V> where K: Hash + Eq {
-    buffer: Vec<Option<Entry<K, V>>>
+pub struct OAHashMap<K, V>
+where
+    K: Hash + Eq,
+{
+    buffer: Vec<Option<Entry<K, V>>>,
 }
 
-impl<K, V> OAHashMap<K, V> where K: Hash + Eq {
+impl<K, V> OAHashMap<K, V>
+where
+    K: Hash + Eq,
+{
     pub fn new() -> Self {
-        let mut buffer = Vec::with_capacity(INITIAL_CAPACITY);
-        for _ in 0..INITIAL_CAPACITY {
-            buffer.push(None);
-        }
-
-        Self {
-            buffer
-        }
+        Self::default()
     }
 
     pub fn insert(&mut self, key: K, value: V) {
@@ -29,7 +28,8 @@ impl<K, V> OAHashMap<K, V> where K: Hash + Eq {
     }
 
     pub fn search(&self, key: &K) -> Option<&V> {
-        self.find_index(key).map(|index| &self.buffer[index].as_ref().unwrap().value)
+        self.find_index(key)
+            .map(|index| &self.buffer[index].as_ref().unwrap().value)
     }
 
     pub fn delete(&mut self, key: &K) {
@@ -46,8 +46,12 @@ impl<K, V> OAHashMap<K, V> where K: Hash + Eq {
     }
 
     fn needs_extending(&self) -> bool {
-        let number_of_elements = self.buffer.iter().filter(|entry| entry.as_ref().is_some_and(|entry| !entry.is_deleted)).count();
-        let percentage = number_of_elements as f32 /  self.buffer.capacity() as f32;
+        let number_of_elements = self
+            .buffer
+            .iter()
+            .filter(|entry| entry.as_ref().is_some_and(|entry| !entry.is_deleted))
+            .count();
+        let percentage = number_of_elements as f32 / self.buffer.capacity() as f32;
 
         percentage > EXTEND_LIMIT
     }
@@ -67,17 +71,15 @@ impl<K, V> OAHashMap<K, V> where K: Hash + Eq {
             new_buffer.push(None);
         }
         let old_buffer = std::mem::replace(&mut self.buffer, new_buffer);
-        for entry in old_buffer {
-            if let Some(entry) = entry {
-                self.insert_unchecked(entry);
-            }
+        for entry in old_buffer.into_iter().flatten() {
+            self.insert_unchecked(entry);
         }
     }
 
     fn insert_unchecked(&mut self, entry: Entry<K, V>) {
         if let Some(index) = self.find_index(&entry.key) {
             self.buffer[index] = Some(entry);
-            
+
             return;
         }
 
@@ -95,7 +97,10 @@ impl<K, V> OAHashMap<K, V> where K: Hash + Eq {
         self.buffer[index] = Some(entry);
     }
 
-    fn starting_index<H>(&self, hashable: &H) -> usize where H: Hash{
+    fn starting_index<H>(&self, hashable: &H) -> usize
+    where
+        H: Hash,
+    {
         let h = calculate_hash(hashable);
 
         h as usize % self.buffer.capacity()
@@ -115,13 +120,33 @@ impl<K, V> OAHashMap<K, V> where K: Hash + Eq {
     }
 }
 
-struct Entry<K, V> where K: Hash + Eq {
+impl<K, V> Default for OAHashMap<K, V>
+where
+    K: Hash + Eq,
+{
+    fn default() -> Self {
+        let mut buffer = Vec::with_capacity(INITIAL_CAPACITY);
+        for _ in 0..INITIAL_CAPACITY {
+            buffer.push(None);
+        }
+
+        Self { buffer }
+    }
+}
+
+struct Entry<K, V>
+where
+    K: Hash + Eq,
+{
     key: K,
     value: V,
     is_deleted: bool,
 }
 
-impl<K, V> Entry<K, V> where K: Hash + Eq {
+impl<K, V> Entry<K, V>
+where
+    K: Hash + Eq,
+{
     fn new(key: K, value: V) -> Self {
         Self {
             key,
@@ -131,13 +156,19 @@ impl<K, V> Entry<K, V> where K: Hash + Eq {
     }
 }
 
-impl<K, V> Hash for Entry<K, V> where K: Hash + Eq {
+impl<K, V> Hash for Entry<K, V>
+where
+    K: Hash + Eq,
+{
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.key.hash(state)
     }
 }
 
-fn calculate_hash<H>(hashable: &H) -> u64 where H: Hash {
+fn calculate_hash<H>(hashable: &H) -> u64
+where
+    H: Hash,
+{
     let mut hasher = DefaultHasher::new();
     hashable.hash(&mut hasher);
 
